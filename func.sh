@@ -202,8 +202,7 @@ mv_check() {
 	fi
 }
 
-# For given subj, copies given array of files from source directory to given
-# destination.
+# Copies given array of files from source directory to given destination.
 # @param    source (directory)
 # @param    dest (directory)
 # @param    array of files to be copied
