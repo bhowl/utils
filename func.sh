@@ -110,7 +110,7 @@ check_file_exists() {
 # @input      from user
 # @returns    exit status
 continue_prompt() {
-	echo -en "(prompt) Do you want to continue?\t"
+	echo -en "[PROMPT] Do you want to continue? (y/n)\t"
 	read continue
 	if [[ "$continue" == "y" ]]; then
 		return 0
@@ -213,21 +213,29 @@ copy_files_array_to_dest() {
 	local array=("${@:3}")
 	
 	for file in "${array[@]}"; do
-		if ! [[ -f "$dest/$file" ]]; then
-			cp -nv $source/$file $dest
-			wait
-		else
-			exit_status=$(( $exit_status + 1 ))
-			echo "$file already exists in $dest. Leaving in place..."
-		fi
-	done
-	
-	return $exit_status
+		cp -fv $source/$file $dest
+		wait
+	done	
 }
 
 clean_directory() {
-    local dirPath="$1"
-
+	local flagQuiet=false
+	
+	while (( $# > 0 )); do
+		case "$1" in
+			-q)
+				flagQuiet=true
+				shift
+				;;
+			*)
+				break
+				;;
+			-*)
+				err_exit "${FUNCNAME[0]}(): Unknown option: $1"
+				;;
+		esac
+	done
+    local dirPath="$1"	
 	check_args 1 "$dirPath"
 	
     # Validate input
@@ -241,9 +249,9 @@ clean_directory() {
 
     # Check if there are files or subdirectories to delete
     if compgen -G "$dirPath/*" > /dev/null; then
-        echo "Cleaning directory: $dirPath"
+        $flagQuiet || echo "Cleaning directory: $dirPath"
         rm -rf "$dirPath/"* || err_exit "Failed cleaning $dirPath/*: $dirPath/*"
-        echo "Deleted contents of $dirPath"
+        $flagQuiet || echo "Deleted contents of $dirPath"
     fi
 }
 
