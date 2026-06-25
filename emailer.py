@@ -11,7 +11,7 @@ def main():
                                      epilog="example: echo \"Ehlo!\" | ./emailer.py -s \"Hello World\" -f \"world.png\"")
     parser.add_argument("-s", "--subject", required=True, help="Email subject line")
     parser.add_argument("-f", "--file", help="Path to file to attach")
-    parser.add_argument("-t", "--to", help="Recipient email (defaults to SENDER_EMAIL env var)")
+    parser.add_argument("-t", "--to", action="append", help="Recipient email(s) (defaults to SENDER_EMAIL env var)")
     args = parser.parse_args()
 
     # 2. Load Credentials from Environment (Security Best Practice)
@@ -25,8 +25,17 @@ def main():
         sys.exit(1)
 
     # Determine recipient: use argument or fallback to sender (sending to self)
-    recipient = args.to if args.to else sender_email
-
+    if args.to:
+        recipients = [sender_email]
+        for item in args.to:
+            recipients.extend(
+                addr.strip()
+                for addr in item.split(",")
+                if addr.strip()
+            )
+    else:
+        recipients = [sender_email]
+    
     # 3. Read Body from Standard Input (allows piping: echo "msg" | script.py)
     body = sys.stdin.read()
     if not body.strip():
@@ -37,7 +46,7 @@ def main():
     msg = EmailMessage()
     msg["Subject"] = args.subject
     msg["From"] = sender_email
-    msg["To"] = recipient
+    msg["To"] = recipients
     msg.set_content(body)
 
     # 4B. Handle Attachment
@@ -70,7 +79,7 @@ def main():
             server.ehlo()
             server.login(sender_email, app_password)
             server.send_message(msg)
-        print(f"Email sent successfully to {recipient}.")
+        print(f"Email sent successfully to {recipients}.")
     except Exception as e:
         print(f"Failed to send email: {e}", file=sys.stderr)
         sys.exit(1)
