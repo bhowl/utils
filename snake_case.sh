@@ -1,6 +1,8 @@
 #!/bin/bash
 
+set -e
 # utils_sh is set in bashrc-like environment
+# TODO: while IFS=$'\\n' read -r line; do snake_case "$line"; done < <(/bin/ls -1)
 . $utils_sh/func.sh || exit 99
 
 while (( $# > 0 )); do
@@ -27,7 +29,7 @@ check_args 1 "$filename"
 
 # Convert 'File name' to file_name
 new="$( echo "$filename" | sed 's/ /_/g; s/\(.*\)/\L\1/')"
-mv -bi "$filename" "$new"
+mv -b "$filename" "$new"
 
 # Check success
 if [[ -f "$new" ]]; then
