@@ -272,3 +272,36 @@ make_selection() {
     done
 	export REPLY selection
 }
+
+# Prints recursively, given file's '# TODO:' comments in org-mode format
+org_grep_todos() {
+    local target="$1"
+
+	grep -R -H -n -E '^[[:space:]]*# TODO:' "$target" |
+		while IFS=: read -r file line rest; do
+			todo=$(printf '%s\n' "$rest" |
+					   sed -E 's/^[[:space:]]*# TODO:[[:space:]]*//')
+
+        printf '** TODO %s\n' "$todo"
+        printf '   [[file:%s::%s][%s:%s]]\n' \
+               "$file" "$line" "$(basename "$file")" "$line"
+    done	
+}
+
+# Adds non-duplicate path to `dirs` builtin directory stack (suppresses normal change of directory)
+add_new_path_to_dir_stack() {
+	local path="$1"
+	check_args 1 "$path"
+	
+	pathFound=false
+	for dir in $(dirs); do
+		if [[ "$dir" == "$path" ]]; then
+			pathFound=true;
+			break
+		fi
+	done
+
+	if ! $pathFound; then
+		pushd -n "$path" > /dev/null
+	fi
+}
