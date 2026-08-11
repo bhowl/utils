@@ -305,3 +305,38 @@ add_new_path_to_dir_stack() {
 		pushd -n "$path" > /dev/null
 	fi
 }
+
+# Parses an ISO8601 timestamp into Unix epoch seconds via jq, not `date
+# -d` (a GNU coreutils extension - unavailable on macOS's native BSD
+# date). Handles a trailing Z, an explicit +HH:MM/-HH:MM offset, or
+# neither; fractional seconds and a missing :SS are both optional.
+# NOTE: jq's mktime ignores any offset parsed via %z (confirmed
+# empirically), so the offset is stripped and applied manually
+# afterward rather than trusted to strptime/mktime directly.
+# @param    ISO8601 timestamp string
+# @returns  epoch seconds on stdout
+iso8601_to_epoch() {
+	local iso="$1"
+	check_args 1 "$iso"
+
+	jq -n -r --arg d "$iso" '
+	  ($d | sub("\\.[0-9]+"; "")) as $no_frac |
+	  ( $no_frac | if test("Z$") then {naive: sub("Z$"; ""), offset: 0}
+	    elif test("[+-][0-9]{2}:[0-9]{2}$") then
+	      ($no_frac | capture("(?<body>.*)(?<sign>[+-])(?<hh>[0-9]{2}):(?<mm>[0-9]{2})$")) as $m |
+	      ($m.hh|tonumber) as $hh |
+	      ($m.mm|tonumber) as $mm |
+	      (if $m.sign == "-" then -1 else 1 end) as $sign_mult |
+	      {naive: $m.body, offset: (($hh*3600 + $mm*60) * $sign_mult)}
+	    else {naive: $no_frac, offset: 0}
+	    end
+	  ) as $parts |
+	  ($parts.naive |
+	    if test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$") then
+	      strptime("%Y-%m-%dT%H:%M:%S")
+	    else
+	      strptime("%Y-%m-%dT%H:%M")
+	    end | mktime
+	  ) - $parts.offset
+	'
+}
