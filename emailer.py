@@ -4,6 +4,7 @@ import sys
 import smtplib
 import argparse
 from email.message import EmailMessage
+from email.utils import make_msgid
 
 def main():
     # 1. Setup Argument Parser
@@ -12,6 +13,9 @@ def main():
     parser.add_argument("-s", "--subject", required=True, help="Email subject line")
     parser.add_argument("-f", "--file", help="Path to file to attach")
     parser.add_argument("-t", "--to", action="append", help="Recipient email(s) (defaults to SENDER_EMAIL env var)")
+    parser.add_argument("--in-reply-to", help="Message-ID (from a prior run's printed 'Message-ID: <...>' line) "
+                                               "to thread this email under - sets both the In-Reply-To and "
+                                               "References headers to it.")
     args = parser.parse_args()
 
     # 2. Load Credentials from Environment (Security Best Practice)
@@ -43,10 +47,18 @@ def main():
         sys.exit(1)
 
     # 4A. Construct Message
+    subject = args.subject
+    if args.in_reply_to and not subject.lower().startswith("re:"):
+        subject = f"Re: {subject}"
+
     msg = EmailMessage()
-    msg["Subject"] = args.subject
+    msg["Subject"] = subject
     msg["From"] = sender_email
     msg["To"] = recipients
+    msg["Message-ID"] = make_msgid()
+    if args.in_reply_to:
+        msg["In-Reply-To"] = args.in_reply_to
+        msg["References"] = args.in_reply_to
     msg.set_content(body)
 
     # 4B. Handle Attachment
@@ -80,6 +92,7 @@ def main():
             server.login(sender_email, app_password)
             server.send_message(msg)
         print(f"Email sent successfully to {recipients}.")
+        print(f"Message-ID: {msg['Message-ID']}")
     except Exception as e:
         print(f"Failed to send email: {e}", file=sys.stderr)
         sys.exit(1)
