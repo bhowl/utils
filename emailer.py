@@ -1,10 +1,26 @@
 #!/usr/bin/env python3
 import os
+import re
 import sys
+import html
 import smtplib
 import argparse
 from email.message import EmailMessage
 from email.utils import make_msgid
+
+URL_RE = re.compile(r"https?://[^\s<>\"]+")
+
+FORMAT_TAG_RE = re.compile(r"</?[bu]>")
+ESCAPED_FORMAT_TAG_RE = re.compile(r"&lt;(/?[bu])&gt;")
+
+def body_to_plain(body):
+    return FORMAT_TAG_RE.sub("", body)
+
+def body_to_html(body):
+    escaped = ESCAPED_FORMAT_TAG_RE.sub(r"<\1>", html.escape(body, quote=False))
+    linked = URL_RE.sub(lambda m: f'<a href="{m.group(0)}">{m.group(0)}</a>', escaped)
+    return ('<html><body><pre style="font-family: monospace; white-space: pre-wrap;">'
+            f"{linked}</pre></body></html>\n")
 
 def main():
     # 1. Setup Argument Parser
@@ -16,6 +32,10 @@ def main():
     parser.add_argument("--in-reply-to", help="Message-ID (from a prior run's printed 'Message-ID: <...>' line) "
                                                "to thread this email under - sets both the In-Reply-To and "
                                                "References headers to it.")
+    parser.add_argument("--html", action="store_true",
+                        help="Also send an HTML alternative of the body: monospace preformatted text "
+                             "with http(s) URLs as clickable links, <b>...</b> shown bold and <u>...</u> "
+                             "underlined. <b> and <u> tags are always stripped from the plain-text part.")
     args = parser.parse_args()
 
     # 2. Load Credentials from Environment (Security Best Practice)
@@ -59,7 +79,9 @@ def main():
     if args.in_reply_to:
         msg["In-Reply-To"] = args.in_reply_to
         msg["References"] = args.in_reply_to
-    msg.set_content(body)
+    msg.set_content(body_to_plain(body))
+    if args.html:
+        msg.add_alternative(body_to_html(body), subtype="html")
 
     # 4B. Handle Attachment
     if args.file:
