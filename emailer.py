@@ -50,7 +50,7 @@ def main():
 
     # Determine recipient: use argument or fallback to sender (sending to self)
     if args.to:
-        recipients = [sender_email]
+        recipients = []
         for item in args.to:
             recipients.extend(
                 addr.strip()
