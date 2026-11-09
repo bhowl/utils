@@ -26,10 +26,20 @@ check_for_zero_exit_status() {
 	fi
 }
 
+# Sources specifed file or echo err_info
+# @param    file to source
+source_or_echo() {
+	local file="$1"
+	if [[ -f "$file" ]]; then
+		. "$file"
+	else
+		err_info "Could not source ${file##*/}"
+	fi
+}
+
 # Sources specifed file or returns
 # @param    file to source
-source_or_return()
-{
+source_or_return() {
 	local file="$1"
 	if [[ -f "$file" ]]; then
 		. "$file"
